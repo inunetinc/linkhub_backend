@@ -15,8 +15,8 @@ const router = express.Router();
 
 const CLIENT_ID = process.env.YOUTUBE_CLIENT_ID;
 const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET;
-const REDIRECT_URI = process.env.YOUTUBE_REDIRECT_URI || 'http://localhost:5000/api/youtube/oauth/callback';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+const REDIRECT_URI = 'https://communistic-kaleb-pseudoexperimentally.ngrok-free.dev/api/youtube/oauth/callback';
+const FRONTEND_URL = 'https://linkhub-peach.vercel.app';
 const SCOPES = ['https://www.googleapis.com/auth/youtube.readonly'];
 
 // Generate a secure random code
