@@ -1,0 +1,341 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                     String                 @id @default(cuid())
+  email                  String                 @unique
+  name                   String
+  type                   UserType?
+  googleId               String?                @unique
+  bio                    String?
+  location               String?
+  website                String?
+  avatar                 String?
+  niches                 Niche[] // Creator's selected niches/categories
+  industry               Industry? // Brand's industry/sector
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  channels               Channel[]
+  ads                    Ad[]
+  adRequests             AdRequest[]
+  sentMessages           Message[]              @relation("MessageSender")
+  receivedMessages       Message[]              @relation("MessageReceiver")
+  contentAnnouncements   ContentAnnouncement[]
+  sentCollabRequests     CollaborationRequest[] @relation("BrandRequests")
+  receivedCollabRequests CollaborationRequest[] @relation("CreatorRequests")
+  notifications          Notification[]
+  payoutSettings         PayoutSettings?
+}
+
+enum UserType {
+  CREATOR
+  BRAND
+}
+
+model Channel {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform        Platform
+  channelId       String
+  channelName     String
+  verified        Boolean   @default(false)
+  subscribers     Int? // YouTube subs / Facebook friends count
+  friendsCount    Int? // Facebook friends (different from subscribers)
+  thumbnail       String?
+  customUrl       String?
+  description     String? // Bio / About text
+  analytics       Json?
+  // OAuth tokens for refresh
+  accessToken     String? // Platform access token
+  refreshToken    String? // Platform refresh token (for token renewal)
+  tokenExpiresAt  DateTime? // When the access token expires
+  lastRefreshedAt DateTime? // Last time analytics were refreshed
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([userId, platform, channelId])
+}
+
+enum Platform {
+  YOUTUBE
+  FACEBOOK
+  INSTAGRAM
+  TWITCH
+  TWITTER
+  TIKTOK
+}
+
+model Ad {
+  id             String                 @id @default(cuid())
+  brandId        String
+  brand          User                   @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?
+  targetNiches   Niche[]
+  // Ad materials
+  images         String[] // Array of image URLs
+  videos         String[] // Array of video URLs
+  videoDurations Int[] // Array of video durations in seconds (matches videos array order)
+  talkingPoints  String? // What the creator should mention/say
+  guidelines     String? // Brand guidelines and requirements
+  scriptRequired Boolean                @default(false) // For image-only ads: whether creator needs to speak/narrate
+  status         AdStatus               @default(DRAFT)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  adRequests     AdRequest[]
+  collabRequests CollaborationRequest[]
+}
+
+enum AdStatus {
+  DRAFT
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+model AdRequest {
+  id        String        @id @default(cuid())
+  adId      String
+  ad        Ad            @relation(fields: [adId], references: [id], onDelete: Cascade)
+  creatorId String
+  creator   User          @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  status    RequestStatus @default(PENDING)
+  message   String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([adId, creatorId])
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  fromUserId String
+  fromUser   User     @relation("MessageSender", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUserId   String
+  toUser     User     @relation("MessageReceiver", fields: [toUserId], references: [id], onDelete: Cascade)
+  content    String
+  createdAt  DateTime @default(now())
+}
+
+model ContentAnnouncement {
+  id                    String                 @id @default(cuid())
+  creatorId             String
+  creator               User                   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  title                 String
+  description           String?
+  platforms             Platform[]
+  channelIds            String[]               @default([])
+  scheduledAt           DateTime
+  thumbnail             String?
+  maxSlots              Int                    @default(1) // Maximum number of brands that can sponsor
+  filledSlots           Int                    @default(0) // Current number of slots filled
+  status                AnnouncementStatus     @default(ACTIVE)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  // Collaboration requests linked to this announcement
+  collaborationRequests CollaborationRequest[]
+}
+
+enum AnnouncementStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+// Collaboration request from brand to creator
+model CollaborationRequest {
+  id                  String               @id @default(cuid())
+  brandId             String
+  brand               User                 @relation("BrandRequests", fields: [brandId], references: [id], onDelete: Cascade)
+  creatorId           String
+  creator             User                 @relation("CreatorRequests", fields: [creatorId], references: [id], onDelete: Cascade)
+  // Selected channels and placements
+  channels            Json // Array of { channelId, channelName, platform, placement, placementLabel, subscribers, price }
+  totalPrice          Float // Estimated total price
+  message             String? // Auto-generated collaboration message
+  status              CollaborationStatus  @default(PENDING)
+  // Long-term deal fields
+  isLongTermDeal      Boolean              @default(false) // Whether this is a long-term deal
+  videoCount          Int? // Number of videos for long-term deal (e.g., 3, 5, 10)
+  videosPosted        Int                  @default(0) // Number of videos posted so far (updated by creator)
+  // After acceptance, brand selects ad material
+  adId                String?
+  ad                  Ad?                  @relation(fields: [adId], references: [id], onDelete: SetNull)
+  // Link to announcement (if sponsoring an announcement)
+  announcementId      String?
+  announcement        ContentAnnouncement? @relation(fields: [announcementId], references: [id], onDelete: SetNull)
+  // Payment tracking (Paystack)
+  paymentReference    String? // Paystack payment reference for verification
+  // Viewed tracking (for badge count)
+  viewedByCreator     Boolean              @default(false) // Has creator viewed this PENDING request
+  viewedByBrand       Boolean              @default(false) // Has brand viewed this request (for accepted/status changes)
+  materialsDownloaded Boolean              @default(false) // Has creator downloaded the ad materials (for PAID requests)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  // Note: Multiple pending requests per brand-creator pair allowed if different channels
+  // Duplicate check is handled in application logic
+}
+
+enum CollaborationStatus {
+  PENDING // Brand sent request, waiting for creator
+  ACCEPTED // Creator accepted, brand can now select ad material
+  AD_SELECTED // Brand selected ad material, waiting for payment
+  PAYMENT_PENDING // Payment initiated but not yet confirmed (Paystack flow)
+  PAID // Payment completed, ad material sent to creator
+  REJECTED // Creator rejected
+  COMPLETED // Campaign finished (creator completed the work)
+  CANCELLED // Brand cancelled
+}
+
+enum Niche {
+  TECH
+  GAMING
+  BEAUTY
+  FASHION
+  FITNESS
+  FINANCE
+  FOOD
+  TRAVEL
+  LIFESTYLE
+  EDUCATION
+  SPORTS
+  MUSIC
+  COMEDY
+  BUSINESS
+  HEALTH_WELLNESS
+}
+
+enum Industry {
+  TECH
+  ECOMMERCE
+  FINANCE
+  HEALTH
+  FOOD
+  FASHION
+  BEAUTY
+  TRAVEL
+  GAMING
+  SPORTS
+  EDUCATION
+  OTHER
+}
+
+// Blog Post model for admin-managed content
+model BlogPost {
+  id          String       @id @default(cuid())
+  title       String
+  slug        String       @unique
+  excerpt     String? // Short description for cards/previews
+  content     String // HTML content with Tailwind classes
+  coverImage  String? // Cover image URL
+  author      String       @default("LinkHub Team")
+  category    BlogCategory @default(GENERAL)
+  tags        String[] // Array of tag strings
+  published   Boolean      @default(false)
+  featured    Boolean      @default(false) // Featured posts appear prominently
+  views       Int          @default(0)
+  readTime    Int? // Estimated read time in minutes
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  publishedAt DateTime? // When the post was published
+}
+
+enum BlogCategory {
+  GENERAL
+  CREATOR_TIPS
+  BRAND_MARKETING
+  INDUSTRY_NEWS
+  TUTORIALS
+  CASE_STUDIES
+  PLATFORM_UPDATES
+  SUCCESS_STORIES
+}
+
+// Contact form messages from landing page
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  subject   String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// Admin notifications to users
+model Notification {
+  id         String           @id @default(cuid())
+  title      String
+  message    String
+  type       NotificationType @default(INFO)
+  // Target: null means all users, otherwise specific user
+  userId     String?
+  user       User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Target by user type
+  targetType UserType? // If set, send to all users of this type
+  read       Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  SUCCESS
+  ANNOUNCEMENT
+}
+
+// Temporary OAuth tokens for secure exchange (expires after use or timeout)
+model OAuthToken {
+  id        String   @id @default(cuid())
+  code      String   @unique // Short-lived code sent to frontend
+  platform  Platform
+  tokenData String // Encrypted JSON with access tokens
+  userToken String? // Original user JWT token
+  used      Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+// Payout settings for creators
+model PayoutSettings {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Bank Account Details
+  bankName      String?
+  accountName   String? // Account holder name
+  accountNumber String? // Bank account number
+  bankCode      String? // Bank code (for Paystack transfers)
+
+  // Payout Preferences
+  payoutFrequency PayoutFrequency @default(IMMEDIATE)
+  minimumPayout   Float           @default(1000) // Minimum balance before payout (in Naira)
+
+  // Verification
+  isVerified    Boolean @default(false)
+  recipientCode String? // Paystack recipient code for transfers
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum PayoutFrequency {
+  IMMEDIATE // Payout as soon as collaboration is completed
+  WEEKLY // Payout every week
+  MONTHLY // Payout once a month
+}
