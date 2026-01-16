@@ -215,7 +215,7 @@ app.use(passport.session());
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: 'http://localhost:5000/auth/google/callback'
+  callbackURL: 'https://communistic-kaleb-pseudoexperimentally.ngrok-free.dev/auth/google/callback'
 }, async (accessToken, refreshToken, profile, done) => {
   try {
     console.log('Google profile:', JSON.stringify(profile, null, 2));
