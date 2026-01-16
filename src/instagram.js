@@ -15,8 +15,8 @@ const router = express.Router();
 
 const APP_ID = process.env.INSTAGRAM_APP_ID;
 const APP_SECRET = process.env.INSTAGRAM_APP_SECRET;
-const REDIRECT_URI = process.env.INSTAGRAM_REDIRECT_URI || 'http://localhost:5000/api/instagram/oauth/callback';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+const REDIRECT_URI = 'https://communistic-kaleb-pseudoexperimentally.ngrok-free.dev/api/instagram/oauth/callback';
+const FRONTEND_URL = 'https://linkhub-peach.vercel.app/';
 
 // Minimal scopes for Instagram Business Login
 const SCOPES = 'instagram_business_basic';
