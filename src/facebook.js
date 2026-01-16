@@ -15,7 +15,7 @@ const prisma = new PrismaClient({ adapter });
 
 const APP_ID = process.env.FACEBOOK_APP_ID;
 const APP_SECRET = process.env.FACEBOOK_APP_SECRET;
-const REDIRECT_URI = 'http://localhost:5000/api/facebook/oauth/callback';
+const REDIRECT_URI = 'https://communistic-kaleb-pseudoexperimentally.ngrok-free.dev/api/facebook/oauth/callback';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 const SCOPES = 'pages_show_list,pages_read_engagement,pages_read_user_content,read_insights,instagram_manage_insights';
