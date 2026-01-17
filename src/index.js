@@ -1,4 +1,3 @@
-
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
@@ -3793,6 +3792,41 @@ app.post('/api/admin/refresh-analytics', async (req, res) => {
     console.error('[Manual Refresh] Error:', error);
     res.status(500).json({ error: error.message });
   }
+});
+
+// Global error handler for multer and other errors
+app.use((err, req, res, next) => {
+  console.error('Global error handler:', err);
+  
+  // Handle Multer errors
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ error: 'File too large. Maximum size is 100MB for videos and 5MB for images.' });
+    }
+    if (err.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({ error: 'Too many files. Maximum is 10 images and 5 videos.' });
+    }
+    if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+      return res.status(400).json({ error: 'Unexpected file field.' });
+    }
+    return res.status(400).json({ error: `Upload error: ${err.message}` });
+  }
+  
+  // Handle custom multer fileFilter errors
+  if (err.message === 'Only image and video files are allowed!' || 
+      err.message === 'Only image files are allowed!') {
+    return res.status(400).json({ error: err.message });
+  }
+  
+  // Handle JWT errors
+  if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+  
+  // Default error response
+  res.status(err.status || 500).json({ 
+    error: err.message || 'Internal server error' 
+  });
 });
 
 const PORT = process.env.PORT || 5000;
